@@ -16,8 +16,9 @@ import json
 import os
 from dataclasses import dataclass, field
 
-from . import arrayops, cfa, color, imageio, rawio
-from .metadata import RawMeta, load_metadata
+from . import arrayops, cfa, color, imageio, raw_adapter
+from .metadata import RawMeta
+from .rawdecode import DECODER_NAME, DECODER_VERSION
 
 
 @dataclass
@@ -38,6 +39,12 @@ class PipelineResult:
     display_linear: tuple[arrayops.Plane, arrayops.Plane, arrayops.Plane]
     channel_stats: list[dict]
     warnings: list[str] = field(default_factory=list)
+    # rawdecode v2 contract evidence, surfaced so callers never have to assume
+    # which decoder / which explicit levels and window produced the pixels.
+    decoder_name: str = DECODER_NAME
+    decoder_version: str = DECODER_VERSION
+    as_shot_wb: tuple[float, float, float] | None = None
+    active_window: tuple[tuple[int, int], tuple[int, int]] | None = None
 
     @property
     def width(self) -> int:
@@ -51,13 +58,18 @@ class PipelineResult:
 def run_pipeline(sidecar_path: str,
                  wb_gains: tuple[float, float, float] | None = None,
                  auto_white_balance: bool = False) -> PipelineResult:
-    meta = load_metadata(sidecar_path)
+    # New decode path: the rawdecode v2 frame is the only thing that touches
+    # the byte stream / sidecar.  The adapter re-checks the three contracts
+    # (black levels, as-shot WB, active window) before any pixel math runs.
+    frame = raw_adapter.decode_frame(sidecar_path)
+    meta = raw_adapter.frame_to_meta(frame)
+    as_shot_wb = raw_adapter.as_shot_white_balance(frame)
+    active_window = raw_adapter.working_window(frame)
     warnings: list[str] = []
 
-    raw_sensor = rawio.read_raw(meta)
+    raw_sensor = frame.pixels
 
-    oy, ox = meta.crop_origin
-    ch, cw = meta.crop_size
+    (oy, ox), (ch, cw) = active_window
     cropped_raw = arrayops.crop(raw_sensor, oy, ox, ch, cw)
     oriented_raw = arrayops.apply_orientation(cropped_raw, meta.orientation)
 
@@ -124,6 +136,10 @@ def run_pipeline(sidecar_path: str,
         display_linear=linprev,
         channel_stats=stats,
         warnings=warnings,
+        decoder_name=frame.decoder,
+        decoder_version=frame.decoder_version,
+        as_shot_wb=as_shot_wb,
+        active_window=active_window,
     )
 
 
@@ -190,13 +206,24 @@ def save_outputs(result: PipelineResult, out_dir: str, stem: str) -> dict:
     with open(sidecar, "w", encoding="utf-8") as fh:
         json.dump({
             "source_raw": result.meta.raw_file,
+            "raw_decoder": {
+                "name": result.decoder_name,
+                "version": result.decoder_version,
+                "legacy_contract": "1.0.0",
+            },
             "cfa_layout": result.meta.cfa_layout,
             "effective_cfa_origin_rgb_phase": _effective_origin(result),
             "orientation": result.meta.orientation,
             "crop_origin": list(result.meta.crop_origin),
             "crop_size": list(result.meta.crop_size),
+            "active_window_origin": list(result.active_window[0])
+            if result.active_window else None,
+            "active_window_size": list(result.active_window[1])
+            if result.active_window else None,
             "black_levels": result.meta.black_levels,
             "white_level": result.meta.white_level,
+            "as_shot_white_balance": (list(result.as_shot_wb)
+                                     if result.as_shot_wb is not None else None),
             "white_balance_gains": dict(
                 zip(("r", "g", "b"), result.wb_gains)
             ),

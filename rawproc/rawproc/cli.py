@@ -12,9 +12,8 @@ import json
 import os
 import sys
 
-from . import pipeline, synthesize
+from . import pipeline, raw_adapter, synthesize
 from .errors import RawDevError
-from .metadata import load_metadata
 
 
 def _gains(text: str):
@@ -41,20 +40,21 @@ def cmd_synthesize(args) -> int:
 
 
 def cmd_info(args) -> int:
-    meta = load_metadata(args.sidecar)
+    frame = raw_adapter.decode_frame(args.sidecar)
     print(json.dumps({
-        "raw_file": meta.raw_file,
-        "sensor": [meta.width, meta.height],
-        "dtype": meta.dtype,
-        "cfa_layout": meta.cfa_layout,
-        "cfa_origin": list(meta.cfa_origin),
-        "black_levels": meta.black_levels,
-        "white_level": meta.white_level,
-        "white_levels": meta.white_levels,
-        "crop_origin": list(meta.crop_origin),
-        "crop_size": list(meta.crop_size),
-        "orientation": meta.orientation,
-        "description": meta.description,
+        "raw_decoder": {"name": frame.decoder,
+                        "version": frame.decoder_version},
+        "raw_file": frame.source_path,
+        "sensor": [frame.sensor_width, frame.sensor_height],
+        "dtype": "<u2",
+        "cfa_origin": list(frame.cfa_origin),
+        "black_levels": frame.levels.as_black_dict(),
+        "white_levels": frame.levels.as_white_dict(),
+        "active_window": {"origin": list(frame.window.origin),
+                          "size": list(frame.window.size)},
+        "as_shot_white_balance": (list(frame.as_shot_wb.as_tuple())
+                                  if frame.as_shot_wb else None),
+        "orientation": frame.orientation,
     }, indent=2, ensure_ascii=False))
     return 0
 

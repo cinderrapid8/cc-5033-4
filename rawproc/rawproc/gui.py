@@ -19,9 +19,10 @@ import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import arrayops, imageio, pipeline, synthesize
+from . import arrayops, imageio, pipeline, raw_adapter, synthesize
 from .errors import RawDevError
 from .metadata import load_metadata
+from .rawdecode import DECODER_NAME, DECODER_VERSION
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _STATIC = os.path.join(_HERE, "web")
@@ -205,6 +206,16 @@ class Handler(BaseHTTPRequestHandler):
             "height": result.height,
             "warnings": result.warnings,
             "wb_gains": dict(zip(("r", "g", "b"), result.wb_gains)),
+            "decoder": {
+                "name": result.decoder_name,
+                "version": result.decoder_version,
+                "as_shot_wb": list(result.as_shot_wb)
+                if result.as_shot_wb is not None else None,
+                "active_window_origin": list(result.active_window[0])
+                if result.active_window else None,
+                "active_window_size": list(result.active_window[1])
+                if result.active_window else None,
+            },
             "channel_stats": result.channel_stats,
             "stages": [
                 ("raw_sensor", "原始传感器采样"),

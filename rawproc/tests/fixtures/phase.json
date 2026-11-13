@@ -1,0 +1,29 @@
+{
+  "width": 18,
+  "height": 14,
+  "dtype": "<u2",
+  "cfa_layout": "rggb",
+  "cfa_origin": [
+    1,
+    0
+  ],
+  "black_levels": {
+    "r": 256,
+    "g1": 256,
+    "g2": 256,
+    "b": 256
+  },
+  "white_level": 1024,
+  "crop_origin": [
+    1,
+    1
+  ],
+  "crop_size": [
+    11,
+    13
+  ],
+  "orientation": 6,
+  "raw_file": "phase.raw",
+  "description": "Off-origin CFA, odd crop and EXIF orientation 6 (90 CW) to validate color-position tracking",
+  "synthetic": true
+}

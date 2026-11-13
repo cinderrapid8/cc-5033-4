@@ -118,6 +118,23 @@ async function develop() {
       }
     }
 
+    const dec = data.decoder;
+    const wbText = dec.as_shot_wb
+      ? dec.as_shot_wb.map((v) => v.toFixed(4)).join(", ")
+      : "样本未声明（不默认 1,1,1）";
+    $("decoder-info").innerHTML = `
+      <dl>
+        <dt>RAW 解码依赖</dt>
+        <dd>${dec.name} ${dec.version}（基础显影走 v2 新路径）</dd>
+        <dt>有效像素窗口（行,列 / 高,宽）</dt>
+        <dd>[${dec.active_window_origin.join(", ")}] /
+            [${dec.active_window_size.join(", ")}]</dd>
+        <dt>机内白平衡系数 R,G,B</dt>
+        <dd>${wbText}</dd>
+        <dt>当前工作增益 R,G,B</dt>
+        <dd>${wb.r.toFixed(4)}, ${wb.g.toFixed(4)}, ${wb.b.toFixed(4)}</dd>
+      </dl>`;
+
     setStatus(`显影完成：${data.width}×${data.height}，` +
       `${data.warnings.length} 条提示。高位深数值见像素检视。`, false);
     showStage(currentStage);

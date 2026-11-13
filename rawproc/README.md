@@ -1,9 +1,36 @@
 # rawproc — 原始相机资料显影原型
 
-一个零第三方依赖（仅 Python 3.11 标准库）的 Bayer RAW 显影链原型。它读取
+一个零第三方运行依赖（仅 Python 3.11 标准库）的 Bayer RAW 显影链原型。它读取
 **自制的原始传感器样本**（小端 uint16 转储 + JSON 元信息），完成逐通道黑电平
 扣除、白电平归一、去马赛克与可选白平衡，输出**线性高位深图像**；白平衡与显示
 转换是相互独立、可分别检视的步骤，预览曲线不会烘焙进结果。
+
+## RAW 解码依赖升级（rawdecode v1 → v2）
+
+项目唯一的“RAW 解码依赖”是树内版本化解码器包 `rawproc.rawdecode`，不来自任何
+包索引；构建锁定见 `requirements-lock.txt`（路径 + 精确版本 + 源码 sha256）与
+`pyproject.toml` 的 `[tool.rawproc.raw-decoder]`。
+
+| 契约 | v1（`rawio` 1.0.0，仅保留兼容垫片） | v2（`rawdecode` 2.0.0，当前路径） |
+| --- | --- | --- |
+| 黑电平 | 松散 dict，调用方按名索引 | `RawLevels` 四通道显式元组；缺任一通道即 `LevelError`，**不以 0 等默认值遮错** |
+| 白平衡系数 | 解码器无此契约 | `WhiteBalanceCoeffs` 机内系数 `[r,g,b]`；可整体缺省（记为 `None`），部分给出/非正数即 `WhiteBalanceError`；与显影内核的工作增益严格分离 |
+| 有效像素窗口 | 松散 crop 元组 | `ActiveWindow`，解码时证明原点/尺寸落在传感器矩形内，越界即 `WindowError`，适配层切片前再复核一次 |
+
+升级后的代码组织：
+
+```
+rawproc/rawdecode/      解码依赖本体（版本 2.0.0）：stream/models/decoder/errors
+rawproc/raw_adapter.py  升级适配层：RawFrame → 内核契约，三处接口显式核对、禁止默认值
+rawproc/rawio.py        v1 兼容垫片，内部委托 v2，仅供旧调用方与迁移脚本参照
+```
+
+**元数据解析成功不等于像素处理正确。** 迁移证据是像素级的，不是“能打开文件”：
+`tests/golden/golden_v1.json` 由升级前提交（`edf9d14`）的 v1 管线对
+`tests/fixtures/` 下可再分发小样本生成，`scripts/verify_migration.py` 用当前 v2
+路径重跑并逐浮点比较马赛克、去马赛克线性 RGB、白平衡线性 RGB，以及过黑/饱和
+掩码、有效窗口与黑电平（容差 1e-12，当前 15 组帧×白平衡情形全部精确一致）。
+黄金基线可用 `bash scripts/regenerate_golden.sh edf9d14` 从 v1 源码重建。
 
 ## 实现范围（明确边界）
 
@@ -17,9 +44,11 @@
 
 ## 图形入口（主要使用方式）
 
-基础显影的图形界面是本地浏览器 GUI，后端只用标准库 `http.server`：
+基础显影的图形界面是本地浏览器 GUI，后端只用标准库 `http.server`，控件完全
+由基础显影内核驱动（每个请求都实跑 `pipeline.run_pipeline` 的 v2 新路径）：
 
 ```bash
+# 在项目根目录 rawproc/ 下启动（包以源码方式运行，无需安装）
 python -m rawproc.gui                 # 默认 http://127.0.0.1:8765/
 python -m rawproc.gui --port 9000 --samples ./samples --outdir ./output
 ```
@@ -27,15 +56,19 @@ python -m rawproc.gui --port 9000 --samples ./samples --outdir ./output
 打开打印出的 URL 后可：
 
 1. 选择自制原始样本，查看其 CFA 排列、R 像素原点、裁切原点/尺寸、旋转与电平；
-2. 调节 R/G/B 线性白平衡增益，或勾选灰世界自动白平衡，点击「显影」；
+2. 调节 R/G/B 线性白平衡增益，或勾选灰世界自动白平衡，点击「显影」；界面显示
+   当前 RAW 解码依赖版本（rawdecode 2.0.0）、有效像素窗口、机内白平衡系数与
+   本次工作增益，机内系数缺省明确标注为“未声明”，不会伪装成 1,1,1；
 3. 在「处理中间结果」中切换查看：原始传感器采样 → 裁切/旋转后传感器 →
    黑扣除+白归一（马赛克）→ 去马赛克（线性）→ 白平衡后线性结果 →
    sRGB 显示预览 → 过黑/饱和标记预览；
 4. 点击图像任意像素，检视该像素的 CFA 通道、原始 uint16、归一化值、过黑/饱和
    标记、线性浮点 RGB、16 位编码值与 8 位 sRGB 预览值（均为实际运算结果）；
-5. 「保存线性结果与预览」把高位深线性结果与显示曲线预览**分开**落盘；
-6. 任何异常（坏元信息、越界裁切、非正增益、未知布局等）都在界面「异常与提示」
-   区以文字提示，不会让页面崩溃。
+5. 「保存线性结果与预览」把高位深线性结果与显示曲线预览**分开**落盘，结果 JSON
+   记录解码器名称/版本、有效窗口与机内白平衡；
+6. 任何异常（坏元信息、缺黑电平通道、越界裁切、非正增益、截断字节流、未知布局
+   等）都在界面「异常与提示」区以带解码器版本的文字提示，不会让页面崩溃——
+   失败反馈回基础显影内核，而不是在界面里兜底默认值。
 
 ## 命令行（仅辅助）
 
@@ -96,32 +129,46 @@ CFA 相位由三个元信息共同决定，管线显式追踪，不靠宽高推�
   仍重建为同一灰度，证明相位被追踪。
 - **edge45**、**checker**：斜边插值与高频棋盘专项。
 
-## 测试
+## 测试与升级核对
 
 ```bash
-python3 -I tests/test_pipeline.py
+python3 -I tests/test_pipeline.py        # 旧 20 个测试：迁移后仍在新路径运行到底
+python3 -I tests/test_rawdecode.py       # v2 三契约接口与“禁止默认值”测试（20 个）
+python3 -I tests/test_upgrade_contract.py# 端到端：版本戳记、白平衡后高位深/颜色（10 个）
+python3 -I scripts/verify_migration.py   # v1 黄金参照逐像素/掩码/窗口比对
+python3 -I scripts/verify_lock.py        # 解码依赖锁：源码哈希 + 三处版本一致
 ```
 
-20 个测试覆盖：手算归一化数值、过黑/饱和标记、双线性插值闭式结果、全方向相位
-几何一致性、纯色通道分离、斜边中间电平、白平衡独立性、16 位 PNG 字节级往返、
-以及未实现布局/越界裁切的元信息拒绝。
+- 旧套件覆盖：手算归一化数值、过黑/饱和标记、双线性插值闭式结果、全方向相位
+  几何一致性、纯色通道分离、斜边中间电平、白平衡独立性、16 位 PNG 字节级往返、
+  以及未实现布局/越界裁切的元信息拒绝——升级后这些样例仍走真实显影并全部通过。
+- 线性像素与有效范围的执行证据：`verify_migration.py` 对每个样本的三种白平衡
+  情形比较 7 个平面（马赛克、R/G/B 去马赛克、R/G/B 白平衡线性值）与 2 个掩码；
+  过黑（原始整数 < 逐通道黑电平）与饱和（≥ 白电平）在 v1/v2 间逐格一致。
+- 仅脚本不算基础显影完成：图形入口 `python -m rawproc.gui` 实跑同一内核，
+  界面的增益调节、像素检视与错误回显均由后端真实运算支撑（见上节）。
 
 ## 目录结构
 
 ```
 rawproc/
+  rawdecode/     版本化 RAW 解码依赖 v2.0.0（stream/models/decoder/errors）
+  raw_adapter.py 升级适配层：黑电平/机内白平衡/有效窗口三契约显式核对
+  rawio.py       v1 兼容垫片（委托 v2），保留旧 API 1.0.0 参照
   metadata.py    侧车 JSON 校验与显式相位/电平/裁切/旋转元信息
-  rawio.py       小端 uint16 读写
   arrayops.py    几何变换、EXIF 1..8 与 CFA 相位追踪
   cfa.py         RGGB 索引平面、逐通道黑扣除/白归一、掩码与统计
   demosaic.py    双线性去马赛克（使用显式索引平面）
   color.py       灰世界/手动白平衡、sRGB 与线性预览（相互独立）
   imageio.py     纯标准库 8/16 位 PNG 编码与掩码叠加
-  pipeline.py    显影主管线与结果/预览分存
+  pipeline.py    显影主管线（经适配层走 v2）与结果/预览分存
   synthesize.py  合成传感器样本
   gui.py + web/  本地浏览器图形界面
   cli.py         辅助命令行
-tests/           单元与可手算参考测试
+scripts/         锁校验、迁移核对、v1 黄金参照再生
+tests/           单元/契约/黄金参照测试，fixtures 为可再分发小样本
+  golden/        v1 管线生成的旧结果参照（像素级基线）
 samples/         生成的自制 RAW + 侧车 JSON
 output/          显影结果与预览
+requirements-lock.txt / pyproject.toml  构建锁定（解码依赖版本+哈希）
 ```

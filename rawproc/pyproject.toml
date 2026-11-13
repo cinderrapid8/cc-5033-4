@@ -1,0 +1,25 @@
+# No build backend is declared on purpose: rawproc runs from source with the
+# stdlib only and is never published as a wheel.  Dependency pinning lives in
+# requirements-lock.txt (in-tree decoder path + version + source hash).
+
+[project]
+name = "rawproc"
+version = "1.1.0"
+description = "Explicit Bayer RAW development prototype with a versioned in-tree raw decoder"
+requires-python = ">=3.11"
+# Zero third-party runtime dependencies.  The raw decoder is the in-tree
+# package rawproc.rawdecode, pinned in requirements-lock.txt (path + version
+# + source hash); it is deliberately NOT published to a package index.
+dependencies = []
+
+[project.scripts]
+rawproc = "rawproc.cli:main"
+
+[tool.rawproc.raw-decoder]
+# The raw-decoding dependency version this build is locked to.  Must match
+# rawproc/rawdecode/__init__.py:DECODER_VERSION and requirements-lock.txt.
+name = "rawdecode"
+version = "2.0.0"
+legacy-api-version = "1.0.0"
+source = "rawproc/rawdecode"
+lockfile = "requirements-lock.txt"

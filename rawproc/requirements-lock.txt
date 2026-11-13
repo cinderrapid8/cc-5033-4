@@ -1,0 +1,13 @@
+# Build/dependency lock for rawproc.
+#
+# rawproc is a zero-third-party, Python-stdlib-only project (Python >= 3.11).
+# Its only "raw decoding dependency" is the in-tree, versioned decoder
+# package `rawproc.rawdecode`.  It cannot be fetched from a package index, so
+# this lock pins it by package path + exact version + source-hash instead of
+# a resolver coordinate.  The hash is verified by scripts/verify_lock.py.
+#
+# Format: name == version @ source  # sha256=<hex>
+rawdecode == 2.0.0 @ rawproc/rawdecode  # sha256=3718e2ace13805719a6d25e2f6cf95a42047db9c26c0678dedfba7cf1a648416
+
+# Stdlib-only runtime: intentionally no third-party packages.
+# python_requires = ">=3.11"
