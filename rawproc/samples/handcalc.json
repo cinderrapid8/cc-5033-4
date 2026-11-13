@@ -1,0 +1,29 @@
+{
+  "width": 4,
+  "height": 4,
+  "dtype": "<u2",
+  "cfa_layout": "rggb",
+  "cfa_origin": [
+    0,
+    0
+  ],
+  "black_levels": {
+    "r": 256,
+    "g1": 260,
+    "g2": 256,
+    "b": 264
+  },
+  "white_level": 4096,
+  "crop_origin": [
+    0,
+    0
+  ],
+  "crop_size": [
+    4,
+    4
+  ],
+  "orientation": 1,
+  "raw_file": "handcalc.raw",
+  "description": "4x4 hand-calculation reference with under-black and saturated pixels",
+  "synthetic": true
+}

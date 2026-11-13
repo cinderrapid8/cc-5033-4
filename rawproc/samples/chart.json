@@ -1,0 +1,29 @@
+{
+  "width": 24,
+  "height": 24,
+  "dtype": "<u2",
+  "cfa_layout": "rggb",
+  "cfa_origin": [
+    0,
+    0
+  ],
+  "black_levels": {
+    "r": 512,
+    "g1": 520,
+    "g2": 512,
+    "b": 528
+  },
+  "white_level": 16383,
+  "crop_origin": [
+    2,
+    2
+  ],
+  "crop_size": [
+    20,
+    20
+  ],
+  "orientation": 1,
+  "raw_file": "chart.raw",
+  "description": "Solid colors, slanted edge, checkerboard, under-black and saturated points; active crop offset (2,2)",
+  "synthetic": true
+}

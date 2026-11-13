@@ -1,0 +1,44 @@
+{
+  "source_raw": "/workspace/rawproc/samples/phase.raw",
+  "cfa_layout": "rggb",
+  "effective_cfa_origin_rgb_phase": [
+    1,
+    0
+  ],
+  "orientation": 6,
+  "crop_origin": [
+    1,
+    1
+  ],
+  "crop_size": [
+    11,
+    13
+  ],
+  "black_levels": {
+    "r": 256,
+    "g1": 256,
+    "g2": 256,
+    "b": 256
+  },
+  "white_level": 1024,
+  "white_balance_gains": {
+    "r": 1.0,
+    "g": 1.0,
+    "b": 1.0
+  },
+  "linear_encoding": "float32 planar RGB, row-major, little-endian",
+  "display_curve": "sRGB IEC 61966-2-1, applied to previews only",
+  "bit_depth_saved": 16,
+  "warnings": [],
+  "files": {
+    "linear16_png": "/workspace/rawproc/output/phase2_linear16.png",
+    "linear16_ppm": "/workspace/rawproc/output/phase2_linear16.ppm",
+    "linear_float32_bin": "/workspace/rawproc/output/phase2_linear_float32.bin",
+    "preview_srgb8_png": "/workspace/rawproc/output/phase2_preview_srgb8.png",
+    "preview_linear8_png": "/workspace/rawproc/output/phase2_preview_linear8.png",
+    "preview_flags_png": "/workspace/rawproc/output/phase2_preview_flags8.png",
+    "mask_under_png": "/workspace/rawproc/output/phase2_mask_underblack8.png",
+    "mask_sat_png": "/workspace/rawproc/output/phase2_mask_saturated8.png",
+    "mosaic_png": "/workspace/rawproc/output/phase2_mosaic_gray16.png"
+  }
+}

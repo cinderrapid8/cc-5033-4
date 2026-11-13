@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rawproc 原始相机资料显影</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <h1>rawproc 基础显影界面</h1>
+  <p class="scope">实现范围：单一 Bayer 布局 RGGB（任意 2×2 相位）、小端 uint16 传感器转储 + JSON 元信息。
+     不解析相机厂商专有 RAW，也不把相机 JPEG 当作 RAW 解码结果。</p>
+</header>
+
+<main>
+  <section class="panel" id="control-panel">
+    <h2>1. 选择自制原始样本</h2>
+    <select id="sample-select" size="6"></select>
+    <div id="sample-meta" class="meta"></div>
+
+    <h2>2. 白平衡（线性域，独立步骤）</h2>
+    <label><input type="checkbox" id="auto-wb"> 灰世界自动白平衡</label>
+    <div class="gains">
+      <label>R <input type="number" id="gain-r" value="1" step="0.01" min="0.01"></label>
+      <label>G <input type="number" id="gain-g" value="1" step="0.01" min="0.01"></label>
+      <label>B <input type="number" id="gain-b" value="1" step="0.01" min="0.01"></label>
+    </div>
+    <div class="buttons">
+      <button id="btn-develop">显影</button>
+      <button id="btn-save">保存线性结果与预览</button>
+    </div>
+
+    <h2>3. 处理中间结果</h2>
+    <div id="stage-buttons" class="stages"></div>
+
+    <h2>4. 异常与提示</h2>
+    <div id="status" class="status">尚未显影。</div>
+    <div id="warnings"></div>
+
+    <h2>5. 通道统计（原始整数）</h2>
+    <table id="stats-table"><tbody></tbody></table>
+  </section>
+
+  <section class="panel" id="viewer-panel">
+    <h2 id="stage-title">结果区</h2>
+    <div class="viewer-wrap">
+      <img id="stage-image" alt="处理阶段图像">
+    </div>
+    <p class="hint">点击图像任意像素检视高位深数值；红色=饱和，蓝色=过黑（标记预览中）。</p>
+
+    <h2>像素检视（实际运算值）</h2>
+    <pre id="pixel-inspector">（点击图像后显示）</pre>
+  </section>
+</main>
+
+<footer>
+  线性 16 位结果与 sRGB 预览曲线分开保存；命令行仅为辅助，图形入口为
+  <code>python -m rawproc.gui</code>。
+</footer>
+<script src="/app.js"></script>
+</body>
+</html>
